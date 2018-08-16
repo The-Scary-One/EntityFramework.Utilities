@@ -12,7 +12,7 @@ namespace EntityFramework.Utilities
         public IEnumerable<T> Items { get; set; }
         public IEnumerator<T> Enumerator { get; set; }
         public IList<string> Properties { get; set; }
-        public List<Func<T, object>> Accessors { get; set; }
+        public List<Func<object, object>> Accessors { get; set; }
 
         public EFDataReader(IEnumerable<T> items, IEnumerable<ColumnMapping> properties)
         {
@@ -21,18 +21,23 @@ namespace EntityFramework.Utilities
             {
                 if (p.StaticValue != null)
                 {
-                    Func<T,object> func = x => p.StaticValue;
+                    Func<object, object> func = x => p.StaticValue;
                     return func;
                 }
 
                 var parts = p.NameOnObject.Split('.');
-
-                PropertyInfo info = typeof(T).GetProperty(parts[0]);
+                var type = typeof(T).Name;
+                PropertyInfo info = items.FirstOrDefault().GetType().GetProperty(parts[0]);
                 var method = typeof(EFDataReader<T>).GetMethod("MakeDelegate");
                 var generic = method.MakeGenericMethod(info.PropertyType);
-
-                var getter = (Func<T, object>)generic.Invoke(this, new object[] { info.GetGetMethod(true) });
-
+                //var tst1 = generic.Invoke(this, null);
+                //var tst = new Func<object,object>()
+                MethodInfo method1 = info.GetGetMethod(true);
+                //var tst = (Func<object>)Delegate.CreateDelegate(typeof(Func<T, object>), items.FirstOrDefault() ,method1.Name);
+                ////var getter = (Func<T, object>)Delegate.CreateDelegate(typeof(Func<T, object>), info.GetGetMethod(true));
+                //var getter = Delegate.CreateDelegate(items.FirstOrDefault().GetType(), info.GetGetMethod());
+                //var tst = generic.Invoke(null,new object[]{ info.GetGetMethod(true) });
+                var getter = CreateGetter(info);
                 var temp = info;
                 foreach (var part in parts.Skip(1))
                 {
@@ -50,6 +55,25 @@ namespace EntityFramework.Utilities
             }).ToList();
             Items = items;
             Enumerator = items.GetEnumerator();
+        }
+        public static Func<object, object> CreateGetter(PropertyInfo property)
+        {
+            if (property == null)
+                throw new ArgumentNullException("property");
+
+            var getter = property.GetGetMethod();
+            if (getter == null)
+                throw new ArgumentException("The specified property does not have a public accessor.");
+            
+            var genericMethod = typeof(EFDataReader<T>).GetMethod("CreateGetterGeneric");
+            MethodInfo genericHelper = genericMethod.MakeGenericMethod(property.DeclaringType, property.PropertyType);
+            return (Func<object, object>)genericHelper.Invoke(null, new object[] { getter });
+        }
+        public static Func<object, object> CreateGetterGeneric<T, R>(MethodInfo getter) where T : class
+        {
+            Func<T, R> getterTypedDelegate = (Func<T, R>)Delegate.CreateDelegate(typeof(Func<T, R>), getter);
+            Func<object, object> getterDelegate = (Func<object, object>)((object instance) => getterTypedDelegate((T)instance));
+            return getterDelegate;
         }
 
         public static Func<T, object> MakeDelegate<U>(MethodInfo @get)
