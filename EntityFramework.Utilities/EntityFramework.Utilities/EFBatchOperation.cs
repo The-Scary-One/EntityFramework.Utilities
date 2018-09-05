@@ -21,7 +21,9 @@ namespace EntityFramework.Utilities
         /// <param name="items">The items to insert</param>
         /// <param name="connection">The DbConnection to use for the insert. Only needed when for example a profiler wraps the connection. Then you need to provide a connection of the type the provider use.</param>
         /// <param name="batchSize">The size of each batch. Default depends on the provider. SqlProvider uses 15000 as default</param>        
-        void InsertAll<TEntity>(IEnumerable<TEntity> items, DbConnection connection = null, int? batchSize = null) where TEntity : class, T; 
+        void InsertAll<TEntity>(IEnumerable<TEntity> items, DbConnection connection = null, int? batchSize = null)
+            where TEntity : class, T;
+
         IEFBatchOperationFiltered<TContext, T> Where(Expression<Func<T, bool>> predicate);
 
 
@@ -33,7 +35,8 @@ namespace EntityFramework.Utilities
         /// <param name="updateSpecification">Define which columns to update</param>
         /// <param name="connection">The DbConnection to use for the insert. Only needed when for example a profiler wraps the connection. Then you need to provide a connection of the type the provider use.</param>
         /// <param name="batchSize">The size of each batch. Default depends on the provider. SqlProvider uses 15000 as default</param>
-        void UpdateAll<TEntity>(IEnumerable<TEntity> items, Action<UpdateSpecification<TEntity>> updateSpecification, DbConnection connection = null, int? batchSize = null) where TEntity : class, T;
+        void UpdateAll<TEntity>(IEnumerable<TEntity> items, Action<UpdateSpecification<TEntity>> updateSpecification,
+            DbConnection connection = null, int? batchSize = null) where TEntity : class, T;
     }
 
     public class UpdateSpecification<T>
@@ -57,6 +60,7 @@ namespace EntityFramework.Utilities
         int Delete();
         int Update<TP>(Expression<Func<T, TP>> prop, Expression<Func<T, TP>> modifier);
     }
+
     public static class EFBatchOperation
     {
         public static IEFBatchOperationBase<TContext, T> For<TContext, T>(TContext context, IDbSet<T> set)
@@ -66,7 +70,9 @@ namespace EntityFramework.Utilities
             return EFBatchOperation<TContext, T>.For(context, set);
         }
     }
-    public class EFBatchOperation<TContext, T> : IEFBatchOperationBase<TContext, T>, IEFBatchOperationFiltered<TContext, T> 
+
+    public class EFBatchOperation<TContext, T> : IEFBatchOperationBase<TContext, T>,
+        IEFBatchOperationFiltered<TContext, T>
         where T : class
         where TContext : DbContext
     {
@@ -95,12 +101,14 @@ namespace EntityFramework.Utilities
         /// <param name="items">The items to insert</param>
         /// <param name="connection">The DbConnection to use for the insert. Only needed when for example a profiler wraps the connection. Then you need to provide a connection of the type the provider use.</param>
         /// <param name="batchSize">The size of each batch. Default depends on the provider. SqlProvider uses 15000 as default</param>
-        public void InsertAll<TEntity>(IEnumerable<TEntity> items, DbConnection connection = null, int? batchSize = null) where TEntity : class, T
+        public void InsertAll<TEntity>(IEnumerable<TEntity> items, DbConnection connection = null,
+            int? batchSize = null) where TEntity : class, T
         {
             var con = context.Connection as EntityConnection;
             if (con == null && connection == null)
             {
-                Configuration.Log("No provider could be found because the Connection didn't implement System.Data.EntityClient.EntityConnection");
+                Configuration.Log(
+                    "No provider could be found because the Connection didn't implement System.Data.EntityClient.EntityConnection");
                 Fallbacks.DefaultInsertAll(context, items);
             }
 
@@ -116,7 +124,8 @@ namespace EntityFramework.Utilities
 
                 var properties = tableMapping.PropertyMappings
                     .Where(p => currentType.IsSubclassOf(p.ForEntityType) || p.ForEntityType == currentType)
-                    .Select(p => new ColumnMapping { NameInDatabase = p.ColumnName, NameOnObject = p.PropertyName }).ToList();
+                    .Select(p => new ColumnMapping {NameInDatabase = p.ColumnName, NameOnObject = p.PropertyName})
+                    .ToList();
                 if (tableMapping.TPHConfiguration != null)
                 {
                     properties.Add(new ColumnMapping
@@ -126,22 +135,27 @@ namespace EntityFramework.Utilities
                     });
                 }
 
-                provider.InsertItems(items, tableMapping.Schema, tableMapping.TableName, properties, connectionToUse, batchSize);
+                provider.InsertItems(items, tableMapping.Schema, tableMapping.TableName, properties, connectionToUse,
+                    batchSize);
             }
             else
             {
-                Configuration.Log("Found provider: " + (provider == null ? "[]" : provider.GetType().Name) + " for " + connectionToUse.GetType().Name);
+                Configuration.Log("Found provider: " + (provider == null ? "[]" : provider.GetType().Name) + " for " +
+                                  connectionToUse.GetType().Name);
                 Fallbacks.DefaultInsertAll(context, items);
             }
         }
 
 
-        public void UpdateAll<TEntity>(IEnumerable<TEntity> items, Action<UpdateSpecification<TEntity>> updateSpecification, DbConnection connection = null, int? batchSize = null) where TEntity : class, T
+        public void UpdateAll<TEntity>(IEnumerable<TEntity> items,
+            Action<UpdateSpecification<TEntity>> updateSpecification, DbConnection connection = null,
+            int? batchSize = null) where TEntity : class, T
         {
             var con = context.Connection as EntityConnection;
             if (con == null && connection == null)
             {
-                Configuration.Log("No provider could be found because the Connection didn't implement System.Data.EntityClient.EntityConnection");
+                Configuration.Log(
+                    "No provider could be found because the Connection didn't implement System.Data.EntityClient.EntityConnection");
                 Fallbacks.DefaultInsertAll(context, items);
             }
 
@@ -157,20 +171,23 @@ namespace EntityFramework.Utilities
 
                 var properties = tableMapping.PropertyMappings
                     .Where(p => currentType.IsSubclassOf(p.ForEntityType) || p.ForEntityType == currentType)
-                    .Select(p => new ColumnMapping { 
-                        NameInDatabase = p.ColumnName, 
-                        NameOnObject = p.PropertyName, 
+                    .Select(p => new ColumnMapping
+                    {
+                        NameInDatabase = p.ColumnName,
+                        NameOnObject = p.PropertyName,
                         DataType = p.DataTypeFull,
                         IsPrimaryKey = p.IsPrimaryKey
-                     }).ToList();
+                    }).ToList();
 
                 var spec = new UpdateSpecification<TEntity>();
                 updateSpecification(spec);
-                provider.UpdateItems(items, tableMapping.Schema, tableMapping.TableName, properties, connectionToUse, batchSize, spec);
+                provider.UpdateItems(items, tableMapping.Schema, tableMapping.TableName, properties, connectionToUse,
+                    batchSize, spec);
             }
             else
             {
-                Configuration.Log("Found provider: " + (provider == null ? "[]" : provider.GetType().Name) + " for " + connectionToUse.GetType().Name);
+                Configuration.Log("Found provider: " + (provider == null ? "[]" : provider.GetType().Name) + " for " +
+                                  connectionToUse.GetType().Name);
                 Fallbacks.DefaultInsertAll(context, items);
             }
         }
@@ -186,7 +203,8 @@ namespace EntityFramework.Utilities
             var con = context.Connection as EntityConnection;
             if (con == null)
             {
-                Configuration.Log("No provider could be found because the Connection didn't implement System.Data.EntityClient.EntityConnection");
+                Configuration.Log(
+                    "No provider could be found because the Connection didn't implement System.Data.EntityClient.EntityConnection");
                 return Fallbacks.DefaultDelete(context, this.predicate);
             }
 
@@ -194,16 +212,18 @@ namespace EntityFramework.Utilities
             if (provider != null && provider.CanDelete)
             {
                 var set = context.CreateObjectSet<T>();
-                var query = (ObjectQuery<T>)set.Where(this.predicate);
+                var query = (ObjectQuery<T>) set.Where(this.predicate);
                 var queryInformation = provider.GetQueryInformation<T>(query);
 
                 var delete = provider.GetDeleteQuery(queryInformation);
-                var parameters = query.Parameters.Select(p => new SqlParameter { Value = p.Value, ParameterName = p.Name }).ToArray<object>();
+                var parameters = query.Parameters
+                    .Select(p => new SqlParameter {Value = p.Value, ParameterName = p.Name}).ToArray<object>();
                 return context.ExecuteStoreCommand(delete, parameters);
             }
             else
             {
-                Configuration.Log("Found provider: " + (provider == null ? "[]" : provider.GetType().Name ) + " for " + con.StoreConnection.GetType().Name);
+                Configuration.Log("Found provider: " + (provider == null ? "[]" : provider.GetType().Name) + " for " +
+                                  con.StoreConnection.GetType().Name);
                 return Fallbacks.DefaultDelete(context, this.predicate);
             }
         }
@@ -213,7 +233,8 @@ namespace EntityFramework.Utilities
             var con = context.Connection as EntityConnection;
             if (con == null)
             {
-                Configuration.Log("No provider could be found because the Connection didn't implement System.Data.EntityClient.EntityConnection");
+                Configuration.Log(
+                    "No provider could be found because the Connection didn't implement System.Data.EntityClient.EntityConnection");
                 return Fallbacks.DefaultUpdate(context, this.predicate, prop, modifier);
             }
 
@@ -222,31 +243,58 @@ namespace EntityFramework.Utilities
             {
                 var set = context.CreateObjectSet<T>();
 
-                var query = (ObjectQuery<T>)set.Where(this.predicate);
+                var query = (ObjectQuery<T>) set.Where(this.predicate);
                 var queryInformation = provider.GetQueryInformation<T>(query);
 
                 var updateExpression = ExpressionHelper.CombineExpressions<T, TP>(prop, modifier);
 
-                var mquery = ((ObjectQuery<T>)context.CreateObjectSet<T>().Where(updateExpression));
+                var mquery = ((ObjectQuery<T>) context.CreateObjectSet<T>().Where(updateExpression));
                 var mqueryInfo = provider.GetQueryInformation<T>(mquery);
 
+                List<ObjectParameter> mqueryParams = GetFixedParams(query, mquery, mqueryInfo);
+
                 var update = provider.GetUpdateQuery(queryInformation, mqueryInfo);
-                
+
                 var parameters = query.Parameters
-                    .Concat(mquery.Parameters)
-                    .Select(p => new SqlParameter { Value = p.Value, ParameterName = p.Name })
-                    .ToArray<object>();
+                    .Concat(mqueryParams)
+                    .Select(p => new SqlParameter {Value = p.Value, ParameterName = p.Name}).ToArray<object>();
 
                 return context.ExecuteStoreCommand(update, parameters);
             }
             else
             {
-                Configuration.Log("Found provider: " + (provider == null ? "[]" : provider.GetType().Name) + " for " + con.StoreConnection.GetType().Name);
+                Configuration.Log("Found provider: " + (provider == null ? "[]" : provider.GetType().Name) + " for " +
+                                  con.StoreConnection.GetType().Name);
                 return Fallbacks.DefaultUpdate(context, this.predicate, prop, modifier);
             }
         }
 
+        private List<ObjectParameter> GetFixedParams(ObjectQuery<T> query, ObjectQuery<T> mquery,
+            QueryInformation mqueryInfo)
+        {
+            List<ObjectParameter> paramsFixed = new List<ObjectParameter>();
 
-     
+            foreach (ObjectParameter parameter in mquery.Parameters)
+            {
+                int counter = 1;
+                string name = parameter.Name;
+
+                ObjectParameter clonedParameter = new ObjectParameter(parameter.Name, parameter.Value);
+
+                if (query.Parameters.ToList().Exists(x => x.Name == clonedParameter.Name))
+                {
+                    while (query.Parameters.ToList().Exists(x => x.Name == clonedParameter.Name))
+                    {
+                        clonedParameter = new ObjectParameter(name + "_" + counter, parameter.Value);
+                    }
+
+                    mqueryInfo.WhereSql = mqueryInfo.WhereSql.Replace(name, clonedParameter.Name);
+                }
+
+                paramsFixed.Add(clonedParameter);
+            }
+
+            return paramsFixed;
+        }
     }
 }
